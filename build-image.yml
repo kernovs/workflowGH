@@ -32,11 +32,35 @@ jobs:
             type=raw, value=${{ github.ref_name }}-latest
             type=sha, prefix=${{ github.ref_name}}-
 
-      - name:
+      - name: Pushing Image on Docker Hub
         id: push
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           tags: ${{steps.meta.outputs.tags}}
-          
+
+      - name: Copy docker-compose to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 58237
+          source: "docker-compose.yml"
+          target: "/home/${{ secrets.SERVER_USER }}/srv/app/dev"
+
+      - name: Deploy App on Serveur
+        id: deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 58237
+          script: |
+            cd /home/${{ secrets.SERVER_USER }}/srv/app/dev
+
+            docker compose pull
+
+            docker compose up -d
